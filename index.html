@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevPulse - Real Performance Profiler</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 4px;
+      background: linear-gradient(90deg, #06b6d4, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle { color: #888; font-size: 0.8rem; margin-bottom: 20px; }
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 999px;
+      font-size: 0.7rem;
+      color: #06b6d4;
+      margin-left: 12px;
+    }
+    .live-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #06b6d4;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #06b6d4, #0891b2);
+      color: white;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: white;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .api-note {
+      font-size: 0.65rem;
+      color: #666;
+      margin-left: auto;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      font-family: 'Monaco', monospace;
+    }
+    .metric-value.cyan { color: #06b6d4; }
+    .metric-value.green { color: #22c55e; }
+    .metric-value.yellow { color: #f59e0b; }
+    .metric-value.purple { color: #a855f7; }
+    .metric-label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+    .metric-unit { font-size: 0.8rem; font-weight: 400; opacity: 0.7; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .panel {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-body {
+      padding: 16px;
+    }
+
+    .timing-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .timing-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .timing-label {
+      width: 100px;
+      font-size: 0.7rem;
+      color: #888;
+    }
+    .timing-bar-container {
+      flex: 1;
+      height: 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .timing-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+    .timing-value {
+      font-size: 0.7rem;
+      font-weight: 600;
+      width: 60px;
+      text-align: right;
+    }
+
+    .memory-chart {
+      height: 120px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      margin-bottom: 12px;
+    }
+    .memory-bar {
+      flex: 1;
+      background: rgba(6, 182, 212, 0.4);
+      border-radius: 2px 2px 0 0;
+      transition: height 0.3s;
+    }
+    .memory-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      font-size: 0.7rem;
+    }
+    .memory-stat {
+      text-align: center;
+      padding: 8px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+    }
+    .memory-stat-value { font-weight: 600; color: #06b6d4; }
+    .memory-stat-label { color: #666; font-size: 0.6rem; }
+
+    .resource-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .resource-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 6px;
+      font-size: 0.7rem;
+    }
+    .resource-type {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .resource-type.script { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .resource-type.link { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .resource-type.img { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .resource-type.fetch { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+    .resource-type.other { background: rgba(255,255,255,0.1); color: #888; }
+    .resource-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #888;
+    }
+    .resource-size { color: #06b6d4; font-weight: 600; }
+    .resource-time { color: #888; }
+
+    .stress-results {
+      display: none;
+      margin-top: 20px;
+    }
+    .stress-results.active { display: block; }
+    .stress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .stress-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #06b6d4;
+    }
+    .stress-metrics {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stress-metric {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stress-metric-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #06b6d4;
+      font-family: 'Monaco', monospace;
+    }
+    .stress-metric-label {
+      font-size: 0.6rem;
+      color: #888;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .stress-progress {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .stress-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #06b6d4, #22d3ee);
+      border-radius: 4px;
+      transition: width 0.1s;
+      width: 0%;
+    }
+    .stress-log {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Monaco', monospace;
+      font-size: 0.7rem;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .stress-log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+    }
+    .stress-log-entry:last-child { border-bottom: none; }
+    .stress-log-label { color: #888; }
+    .stress-log-value { color: #22d3ee; font-weight: 600; }
+
+    .navigation-timeline {
+      position: relative;
+      height: 60px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .timeline-bar {
+      position: absolute;
+      height: 20px;
+      top: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding-left: 6px;
+      font-size: 0.55rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      color: #666;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>DevPulse <span class="live-badge">REAL METRICS</span></h1>
+    <p class="subtitle">Live browser performance profiling using the Performance API</p>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="profileBtn" onclick="runProfile()">Profile Page</button>
+      <button class="btn btn-secondary" id="stressBtn" onclick="runStressTest()">Stress Test</button>
+      <span class="api-note">Using Browser Performance API, Navigation Timing, & Resource Timing</span>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-value cyan" id="domLoad">--<span class="metric-unit">ms</span></div>
+        <div class="metric-label">DOM Load</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value green" id="pageLoad">--<span class="metric-unit">ms</span></div>
+        <div class="metric-label">Page Load</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value yellow" id="resourceCount">--</div>
+        <div class="metric-label">Resources</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value purple" id="memoryUsed">--<span class="metric-unit">MB</span></div>
+        <div class="metric-label">Memory Used</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 20px;">
+      <div class="panel-header">
+        <span>Navigation Timeline</span>
+        <span id="totalTime">--</span>
+      </div>
+      <div class="panel-body">
+        <div class="navigation-timeline" id="navTimeline"></div>
+        <div class="timeline-labels">
+          <span>0ms</span>
+          <span id="timelineMax">--</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Performance Timings</span>
+          <span id="timingStatus">Ready</span>
+        </div>
+        <div class="panel-body">
+          <div class="timing-bars" id="timingBars"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span>Memory Usage</span>
+          <span id="memoryStatus">--</span>
+        </div>
+        <div class="panel-body">
+          <div class="memory-chart" id="memoryChart"></div>
+          <div class="memory-stats">
+            <div class="memory-stat">
+              <div class="memory-stat-value" id="heapUsed">--</div>
+              <div class="memory-stat-label">Heap Used</div>
+            </div>
+            <div class="memory-stat">
+              <div class="memory-stat-value" id="heapTotal">--</div>
+              <div class="memory-stat-label">Heap Total</div>
+            </div>
+            <div class="memory-stat">
+              <div class="memory-stat-value" id="heapLimit">--</div>
+              <div class="memory-stat-label">Heap Limit</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>Resource Loading</span>
+        <span id="resourceSummary">0 resources</span>
+      </div>
+      <div class="panel-body">
+        <div class="resource-list" id="resourceList"></div>
+      </div>
+    </div>
+
+    <div class="stress-results" id="stressResults">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Stress Test Results</span>
+          <span id="stressStatus">Ready</span>
+        </div>
+        <div class="panel-body">
+          <div class="stress-progress">
+            <div class="stress-progress-fill" id="stressProgress"></div>
+          </div>
+          <div class="stress-metrics">
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressDuration">--</div>
+              <div class="stress-metric-label">Total Time (ms)</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressOpsPerSec">--</div>
+              <div class="stress-metric-label">Ops/Second</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressMemBefore">--</div>
+              <div class="stress-metric-label">Memory Before</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressMemAfter">--</div>
+              <div class="stress-metric-label">Memory After</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressMemDelta">--</div>
+              <div class="stress-metric-label">Memory Delta</div>
+            </div>
+          </div>
+          <div class="stress-log" id="stressLog">
+            <div style="color: #666; text-align: center; padding: 20px;">Run a stress test to see detailed metrics</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let memoryHistory = [];
+    let memoryInterval = null;
+
+    // Initialize memory chart
+    function initMemoryChart() {
+      const chart = document.getElementById('memoryChart');
+      chart.innerHTML = '';
+      for (let i = 0; i < 40; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'memory-bar';
+        bar.style.height = '5%';
+        chart.appendChild(bar);
+      }
+    }
+
+    function runProfile() {
+      const btn = document.getElementById('profileBtn');
+      btn.disabled = true;
+      btn.textContent = 'Profiling...';
+
+      // Get navigation timing
+      const navTiming = performance.getEntriesByType('navigation')[0];
+
+      if (navTiming) {
+        // Update main metrics
+        const domLoad = Math.round(navTiming.domContentLoadedEventEnd);
+        const pageLoad = Math.round(navTiming.loadEventEnd);
+
+        document.getElementById('domLoad').innerHTML = `${domLoad}<span class="metric-unit">ms</span>`;
+        document.getElementById('pageLoad').innerHTML = `${pageLoad}<span class="metric-unit">ms</span>`;
+        document.getElementById('totalTime').textContent = `${pageLoad}ms total`;
+        document.getElementById('timelineMax').textContent = `${pageLoad}ms`;
+
+        // Render timing bars
+        renderTimingBars(navTiming);
+
+        // Render navigation timeline
+        renderNavigationTimeline(navTiming);
+      }
+
+      // Get resource timing
+      const resources = performance.getEntriesByType('resource');
+      document.getElementById('resourceCount').textContent = resources.length;
+      renderResourceList(resources);
+
+      // Get memory if available
+      if (performance.memory) {
+        updateMemory();
+        startMemoryMonitoring();
+      } else {
+        document.getElementById('memoryUsed').innerHTML = `N/A`;
+        document.getElementById('memoryStatus').textContent = 'Not supported';
+      }
+
+      document.getElementById('timingStatus').textContent = 'Updated';
+
+      btn.disabled = false;
+      btn.textContent = 'Profile Page';
+    }
+
+    function renderTimingBars(timing) {
+      const container = document.getElementById('timingBars');
+      container.innerHTML = '';
+
+      const timings = [
+        { label: 'DNS Lookup', value: timing.domainLookupEnd - timing.domainLookupStart, color: '#f59e0b' },
+        { label: 'TCP Connect', value: timing.connectEnd - timing.connectStart, color: '#3b82f6' },
+        { label: 'Request', value: timing.responseStart - timing.requestStart, color: '#a855f7' },
+        { label: 'Response', value: timing.responseEnd - timing.responseStart, color: '#22c55e' },
+        { label: 'DOM Processing', value: timing.domComplete - timing.responseEnd, color: '#06b6d4' },
+        { label: 'Load Event', value: timing.loadEventEnd - timing.loadEventStart, color: '#ec4899' }
+      ];
+
+      const maxValue = Math.max(...timings.map(t => t.value), 100);
+
+      timings.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'timing-row';
+        const width = Math.max(5, (t.value / maxValue) * 100);
+        row.innerHTML = `
+          <span class="timing-label">${t.label}</span>
+          <div class="timing-bar-container">
+            <div class="timing-bar" style="width: ${width}%; background: ${t.color};"></div>
+          </div>
+          <span class="timing-value" style="color: ${t.color}">${Math.round(t.value)}ms</span>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function renderNavigationTimeline(timing) {
+      const container = document.getElementById('navTimeline');
+      container.innerHTML = '';
+
+      const total = timing.loadEventEnd;
+      if (total === 0) return;
+
+      const phases = [
+        { label: 'DNS', start: timing.domainLookupStart, end: timing.domainLookupEnd, color: '#f59e0b' },
+        { label: 'Connect', start: timing.connectStart, end: timing.connectEnd, color: '#3b82f6' },
+        { label: 'Request', start: timing.requestStart, end: timing.responseStart, color: '#a855f7' },
+        { label: 'Response', start: timing.responseStart, end: timing.responseEnd, color: '#22c55e' },
+        { label: 'DOM', start: timing.responseEnd, end: timing.domComplete, color: '#06b6d4' },
+        { label: 'Load', start: timing.loadEventStart, end: timing.loadEventEnd, color: '#ec4899' }
+      ];
+
+      phases.forEach(phase => {
+        if (phase.end - phase.start < 1) return;
+
+        const left = (phase.start / total) * 100;
+        const width = Math.max(2, ((phase.end - phase.start) / total) * 100);
+
+        const bar = document.createElement('div');
+        bar.className = 'timeline-bar';
+        bar.style.left = `${left}%`;
+        bar.style.width = `${width}%`;
+        bar.style.background = phase.color;
+        bar.textContent = phase.label;
+        container.appendChild(bar);
+      });
+    }
+
+    function renderResourceList(resources) {
+      const container = document.getElementById('resourceList');
+      container.innerHTML = '';
+
+      // Sort by duration
+      const sorted = resources.slice().sort((a, b) => b.duration - a.duration).slice(0, 20);
+
+      let totalSize = 0;
+      sorted.forEach(r => {
+        const size = r.transferSize || 0;
+        totalSize += size;
+
+        const type = getResourceType(r.initiatorType);
+        const name = r.name.split('/').pop().split('?')[0] || r.name;
+
+        const item = document.createElement('div');
+        item.className = 'resource-item';
+        item.innerHTML = `
+          <span class="resource-type ${type}">${type}</span>
+          <span class="resource-name" title="${r.name}">${name}</span>
+          <span class="resource-size">${formatSize(size)}</span>
+          <span class="resource-time">${Math.round(r.duration)}ms</span>
+        `;
+        container.appendChild(item);
+      });
+
+      document.getElementById('resourceSummary').textContent =
+        `${resources.length} resources (${formatSize(totalSize)})`;
+    }
+
+    function getResourceType(initiatorType) {
+      if (initiatorType === 'script') return 'script';
+      if (initiatorType === 'link' || initiatorType === 'css') return 'link';
+      if (initiatorType === 'img') return 'img';
+      if (initiatorType === 'fetch' || initiatorType === 'xmlhttprequest') return 'fetch';
+      return 'other';
+    }
+
+    function formatSize(bytes) {
+      if (bytes === 0) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function updateMemory() {
+      if (!performance.memory) return;
+
+      const used = performance.memory.usedJSHeapSize;
+      const total = performance.memory.totalJSHeapSize;
+      const limit = performance.memory.jsHeapSizeLimit;
+
+      document.getElementById('memoryUsed').innerHTML =
+        `${(used / 1024 / 1024).toFixed(1)}<span class="metric-unit">MB</span>`;
+      document.getElementById('heapUsed').textContent = `${(used / 1024 / 1024).toFixed(1)} MB`;
+      document.getElementById('heapTotal').textContent = `${(total / 1024 / 1024).toFixed(1)} MB`;
+      document.getElementById('heapLimit').textContent = `${(limit / 1024 / 1024).toFixed(0)} MB`;
+
+      const usagePercent = (used / limit) * 100;
+      document.getElementById('memoryStatus').textContent = `${usagePercent.toFixed(1)}% used`;
+
+      // Update history
+      memoryHistory.push(used);
+      if (memoryHistory.length > 40) memoryHistory.shift();
+
+      // Update chart
+      const chart = document.getElementById('memoryChart');
+      const bars = chart.children;
+      const maxMem = Math.max(...memoryHistory);
+
+      for (let i = 0; i < 40; i++) {
+        const value = memoryHistory[i] || 0;
+        const height = Math.max(5, (value / maxMem) * 100);
+        bars[i].style.height = `${height}%`;
+      }
+    }
+
+    function startMemoryMonitoring() {
+      if (memoryInterval) clearInterval(memoryInterval);
+      memoryInterval = setInterval(updateMemory, 1000);
+    }
+
+    async function runStressTest() {
+      const btn = document.getElementById('stressBtn');
+      const resultsPanel = document.getElementById('stressResults');
+      const progressFill = document.getElementById('stressProgress');
+      const stressLog = document.getElementById('stressLog');
+
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+      resultsPanel.classList.add('active');
+      document.getElementById('stressStatus').textContent = 'Running...';
+      stressLog.innerHTML = '';
+      progressFill.style.width = '0%';
+
+      // Clear previous marks
+      performance.clearMarks();
+      performance.clearMeasures();
+
+      // Memory before (if available)
+      const memBefore = performance.memory ? performance.memory.usedJSHeapSize : null;
+      if (memBefore) {
+        document.getElementById('stressMemBefore').textContent = formatMB(memBefore);
+        addStressLogEntry('Initial Memory', formatMB(memBefore));
+      }
+
+      const tests = [
+        { name: 'Math Operations', fn: testMathOps, iterations: 500000 },
+        { name: 'Array Operations', fn: testArrayOps, iterations: 10000 },
+        { name: 'String Operations', fn: testStringOps, iterations: 50000 },
+        { name: 'Object Creation', fn: testObjectCreation, iterations: 50000 },
+        { name: 'DOM Operations', fn: testDOMOps, iterations: 1000 }
+      ];
+
+      let totalDuration = 0;
+      let totalOps = 0;
+
+      for (let i = 0; i < tests.length; i++) {
+        const test = tests[i];
+        progressFill.style.width = `${((i + 0.5) / tests.length) * 100}%`;
+
+        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UI update
+
+        performance.mark(`${test.name}-start`);
+        const startTime = performance.now();
+
+        test.fn(test.iterations);
+
+        const duration = performance.now() - startTime;
+        performance.mark(`${test.name}-end`);
+        performance.measure(test.name, `${test.name}-start`, `${test.name}-end`);
+
+        totalDuration += duration;
+        totalOps += test.iterations;
+
+        const opsPerSec = Math.round(test.iterations / (duration / 1000));
+        addStressLogEntry(test.name, `${Math.round(duration)}ms (${formatNumber(opsPerSec)} ops/s)`);
+
+        progressFill.style.width = `${((i + 1) / tests.length) * 100}%`;
+      }
+
+      // Memory after
+      const memAfter = performance.memory ? performance.memory.usedJSHeapSize : null;
+      if (memAfter) {
+        document.getElementById('stressMemAfter').textContent = formatMB(memAfter);
+        const delta = memAfter - memBefore;
+        document.getElementById('stressMemDelta').textContent = (delta >= 0 ? '+' : '') + formatMB(delta);
+        addStressLogEntry('Final Memory', formatMB(memAfter));
+        addStressLogEntry('Memory Change', (delta >= 0 ? '+' : '') + formatMB(delta));
+      }
+
+      // Update summary metrics
+      document.getElementById('stressDuration').textContent = Math.round(totalDuration);
+      const totalOpsPerSec = Math.round(totalOps / (totalDuration / 1000));
+      document.getElementById('stressOpsPerSec').textContent = formatNumber(totalOpsPerSec);
+
+      // Update timing status
+      document.getElementById('timingStatus').textContent = `Stress: ${Math.round(totalDuration)}ms`;
+      document.getElementById('stressStatus').textContent = 'Complete';
+
+      // Force memory update
+      if (performance.memory) {
+        updateMemory();
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Stress Test';
+    }
+
+    function testMathOps(iterations) {
+      let result = 0;
+      for (let i = 0; i < iterations; i++) {
+        result += Math.sqrt(i) * Math.sin(i) * Math.cos(i);
+        result = Math.abs(result % 1000);
+      }
+      return result;
+    }
+
+    function testArrayOps(iterations) {
+      const arr = [];
+      for (let i = 0; i < iterations; i++) {
+        arr.push(i);
+        if (i % 100 === 0) {
+          arr.sort((a, b) => b - a);
+          arr.reverse();
+        }
+      }
+      return arr.length;
+    }
+
+    function testStringOps(iterations) {
+      let str = '';
+      for (let i = 0; i < iterations; i++) {
+        str += String.fromCharCode(65 + (i % 26));
+        if (str.length > 1000) {
+          str = str.slice(-500);
+        }
+      }
+      return str.length;
+    }
+
+    function testObjectCreation(iterations) {
+      const objects = [];
+      for (let i = 0; i < iterations; i++) {
+        objects.push({
+          id: i,
+          name: `Object ${i}`,
+          data: { nested: { value: i * 2 } },
+          tags: ['test', 'stress', `tag${i}`]
+        });
+        if (objects.length > 1000) {
+          objects.shift();
+        }
+      }
+      return objects.length;
+    }
+
+    function testDOMOps(iterations) {
+      const container = document.createElement('div');
+      container.style.display = 'none';
+      document.body.appendChild(container);
+
+      for (let i = 0; i < iterations; i++) {
+        const el = document.createElement('div');
+        el.className = `test-element-${i}`;
+        el.textContent = `Element ${i}`;
+        el.setAttribute('data-index', i);
+        container.appendChild(el);
+
+        if (container.children.length > 100) {
+          container.removeChild(container.firstChild);
+        }
+      }
+
+      document.body.removeChild(container);
+      return iterations;
+    }
+
+    function addStressLogEntry(label, value) {
+      const log = document.getElementById('stressLog');
+      const entry = document.createElement('div');
+      entry.className = 'stress-log-entry';
+      entry.innerHTML = `
+        <span class="stress-log-label">${label}</span>
+        <span class="stress-log-value">${value}</span>
+      `;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function formatMB(bytes) {
+      return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    }
+
+    // Initialize
+    initMemoryChart();
+
+    // Auto-profile on load
+    window.addEventListener('load', () => {
+      setTimeout(runProfile, 100);
+    });
+  </script>
+</body>
+</html>
