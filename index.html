@@ -3,105 +3,113 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DevPulse - Developer Analytics Dashboard</title>
+  <title>DevPulse - Real Performance Profiler</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
       color: #fff;
       min-height: 100vh;
       padding: 20px;
     }
-    .container { max-width: 900px; margin: 0 auto; }
+    .container { max-width: 1000px; margin: 0 auto; }
     h1 {
       font-size: 1.5rem;
-      margin-bottom: 8px;
-      background: linear-gradient(90deg, #10b981, #34d399);
+      margin-bottom: 4px;
+      background: linear-gradient(90deg, #06b6d4, #22d3ee);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .subtitle { color: #888; font-size: 0.875rem; margin-bottom: 24px; }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
+    .subtitle { color: #888; font-size: 0.8rem; margin-bottom: 20px; }
+    .live-badge {
+      display: inline-flex;
       align-items: center;
-      margin-bottom: 24px;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 999px;
+      font-size: 0.7rem;
+      color: #06b6d4;
+      margin-left: 12px;
     }
-    .time-range {
+    .live-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #06b6d4;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .controls {
       display: flex;
-      gap: 4px;
-      background: rgba(255,255,255,0.03);
-      padding: 4px;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .btn {
+      padding: 10px 20px;
       border-radius: 8px;
-    }
-    .time-btn {
-      padding: 6px 12px;
-      border: none;
-      background: transparent;
-      color: #888;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 500;
       cursor: pointer;
-      border-radius: 6px;
       transition: all 0.2s;
+      border: none;
     }
-    .time-btn:hover { color: #fff; }
-    .time-btn.active {
-      background: rgba(16, 185, 129, 0.2);
-      color: #34d399;
+    .btn-primary {
+      background: linear-gradient(135deg, #06b6d4, #0891b2);
+      color: white;
     }
-    .stats-grid {
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: white;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .api-note {
+      font-size: 0.65rem;
+      color: #666;
+      margin-left: auto;
+    }
+
+    .metrics-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
-    .stat-card {
+    .metric-card {
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px;
       padding: 16px;
+      text-align: center;
     }
-    .stat-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    .stat-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-    }
-    .stat-icon.green { background: rgba(16, 185, 129, 0.2); }
-    .stat-icon.blue { background: rgba(59, 130, 246, 0.2); }
-    .stat-icon.purple { background: rgba(139, 92, 246, 0.2); }
-    .stat-icon.orange { background: rgba(249, 115, 22, 0.2); }
-    .stat-change {
-      font-size: 0.625rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    .stat-change.up { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    .stat-change.down { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    .stat-value {
+    .metric-value {
       font-size: 1.5rem;
       font-weight: 700;
       margin-bottom: 4px;
+      font-family: 'Monaco', monospace;
     }
-    .stat-label {
-      font-size: 0.75rem;
-      color: #888;
-    }
+    .metric-value.cyan { color: #06b6d4; }
+    .metric-value.green { color: #22c55e; }
+    .metric-value.yellow { color: #f59e0b; }
+    .metric-value.purple { color: #a855f7; }
+    .metric-label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+    .metric-unit { font-size: 0.8rem; font-weight: 400; opacity: 0.7; }
+
     .main-grid {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .panel {
       background: rgba(255,255,255,0.03);
@@ -110,329 +118,491 @@
       overflow: hidden;
     }
     .panel-header {
-      padding: 16px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.2);
       border-bottom: 1px solid rgba(255,255,255,0.1);
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       font-weight: 600;
-    }
-    .panel-body { padding: 16px; }
-    .chart-container {
-      height: 200px;
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      padding: 16px 0;
-    }
-    .chart-bar {
-      flex: 1;
-      background: linear-gradient(to top, #10b981, #34d399);
-      border-radius: 4px 4px 0 0;
-      transition: height 0.5s ease;
-      position: relative;
-      cursor: pointer;
-    }
-    .chart-bar:hover { opacity: 0.8; }
-    .chart-bar::after {
-      content: attr(data-value);
-      position: absolute;
-      top: -20px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.625rem;
-      color: #888;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    .chart-bar:hover::after { opacity: 1; }
-    .chart-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 0.625rem;
-      color: #666;
-      padding-top: 8px;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-    .activity-list { max-height: 240px; overflow-y: auto; }
-    .activity-item {
-      display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .activity-item:last-child { border-bottom: none; }
-    .activity-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.875rem;
+    .panel-body {
+      padding: 16px;
     }
-    .activity-icon.commit { background: rgba(16, 185, 129, 0.2); }
-    .activity-icon.pr { background: rgba(139, 92, 246, 0.2); }
-    .activity-icon.issue { background: rgba(249, 115, 22, 0.2); }
-    .activity-icon.review { background: rgba(59, 130, 246, 0.2); }
-    .activity-details { flex: 1; }
-    .activity-title { font-size: 0.75rem; color: #fff; }
-    .activity-meta { font-size: 0.625rem; color: #666; }
-    .activity-time { font-size: 0.625rem; color: #888; }
-    .languages-list {
+
+    .timing-bars {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
-    .language-item {
+    .timing-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
-    .language-name {
-      width: 80px;
-      font-size: 0.75rem;
+    .timing-label {
+      width: 100px;
+      font-size: 0.7rem;
       color: #888;
     }
-    .language-bar {
+    .timing-bar-container {
       flex: 1;
-      height: 8px;
+      height: 20px;
       background: rgba(255,255,255,0.05);
       border-radius: 4px;
       overflow: hidden;
+      position: relative;
     }
-    .language-fill {
+    .timing-bar {
       height: 100%;
       border-radius: 4px;
       transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 0.65rem;
+      font-weight: 600;
     }
-    .language-percent {
-      width: 40px;
+    .timing-value {
+      font-size: 0.7rem;
+      font-weight: 600;
+      width: 60px;
       text-align: right;
-      font-size: 0.75rem;
-      color: #fff;
     }
-    .streak-card {
-      text-align: center;
-      padding: 24px;
+
+    .memory-chart {
+      height: 120px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      margin-bottom: 12px;
     }
-    .streak-value {
-      font-size: 3rem;
-      font-weight: 700;
-      background: linear-gradient(90deg, #10b981, #34d399);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .memory-bar {
+      flex: 1;
+      background: rgba(6, 182, 212, 0.4);
+      border-radius: 2px 2px 0 0;
+      transition: height 0.3s;
     }
-    .streak-label {
-      font-size: 0.875rem;
-      color: #888;
-      margin-bottom: 16px;
-    }
-    .streak-calendar {
+    .memory-stats {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      font-size: 0.7rem;
     }
-    .streak-day {
-      width: 100%;
-      aspect-ratio: 1;
+    .memory-stat {
+      text-align: center;
+      padding: 8px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+    }
+    .memory-stat-value { font-weight: 600; color: #06b6d4; }
+    .memory-stat-label { color: #666; font-size: 0.6rem; }
+
+    .resource-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .resource-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 6px;
+      font-size: 0.7rem;
+    }
+    .resource-type {
+      padding: 2px 8px;
       border-radius: 4px;
-      background: rgba(255,255,255,0.05);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
     }
-    .streak-day.active { background: rgba(16, 185, 129, 0.4); }
-    .streak-day.today {
-      background: #10b981;
-      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    .resource-type.script { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .resource-type.link { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .resource-type.img { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .resource-type.fetch { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+    .resource-type.other { background: rgba(255,255,255,0.1); color: #888; }
+    .resource-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #888;
+    }
+    .resource-size { color: #06b6d4; font-weight: 600; }
+    .resource-time { color: #888; }
+
+    .navigation-timeline {
+      position: relative;
+      height: 60px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .timeline-bar {
+      position: absolute;
+      height: 20px;
+      top: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding-left: 6px;
+      font-size: 0.55rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      color: #666;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header-row">
-      <div>
-        <h1>DevPulse</h1>
-        <p class="subtitle">Real-time developer productivity analytics</p>
+    <h1>DevPulse <span class="live-badge">REAL METRICS</span></h1>
+    <p class="subtitle">Live browser performance profiling using the Performance API</p>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="profileBtn" onclick="runProfile()">Profile Page</button>
+      <button class="btn btn-secondary" onclick="runStressTest()">Stress Test</button>
+      <span class="api-note">Using Browser Performance API, Navigation Timing, & Resource Timing</span>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-value cyan" id="domLoad">--<span class="metric-unit">ms</span></div>
+        <div class="metric-label">DOM Load</div>
       </div>
-      <div class="time-range">
-        <button class="time-btn" onclick="setRange('day')">Day</button>
-        <button class="time-btn active" onclick="setRange('week')">Week</button>
-        <button class="time-btn" onclick="setRange('month')">Month</button>
+      <div class="metric-card">
+        <div class="metric-value green" id="pageLoad">--<span class="metric-unit">ms</span></div>
+        <div class="metric-label">Page Load</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value yellow" id="resourceCount">--</div>
+        <div class="metric-label">Resources</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value purple" id="memoryUsed">--<span class="metric-unit">MB</span></div>
+        <div class="metric-label">Memory Used</div>
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon green">📊</div>
-          <span class="stat-change up">+12%</span>
-        </div>
-        <div class="stat-value" id="commits">247</div>
-        <div class="stat-label">Commits</div>
+    <div class="panel" style="margin-bottom: 20px;">
+      <div class="panel-header">
+        <span>Navigation Timeline</span>
+        <span id="totalTime">--</span>
       </div>
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon purple">🔀</div>
-          <span class="stat-change up">+8%</span>
+      <div class="panel-body">
+        <div class="navigation-timeline" id="navTimeline"></div>
+        <div class="timeline-labels">
+          <span>0ms</span>
+          <span id="timelineMax">--</span>
         </div>
-        <div class="stat-value" id="prs">34</div>
-        <div class="stat-label">Pull Requests</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon blue">👀</div>
-          <span class="stat-change up">+23%</span>
-        </div>
-        <div class="stat-value" id="reviews">89</div>
-        <div class="stat-label">Code Reviews</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-header">
-          <div class="stat-icon orange">📝</div>
-          <span class="stat-change down">-5%</span>
-        </div>
-        <div class="stat-value" id="loc">4.2k</div>
-        <div class="stat-label">Lines Changed</div>
       </div>
     </div>
 
     <div class="main-grid">
       <div class="panel">
-        <div class="panel-header">📈 Commit Activity</div>
+        <div class="panel-header">
+          <span>Performance Timings</span>
+          <span id="timingStatus">Ready</span>
+        </div>
         <div class="panel-body">
-          <div class="chart-container" id="chart"></div>
-          <div class="chart-labels">
-            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+          <div class="timing-bars" id="timingBars"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span>Memory Usage</span>
+          <span id="memoryStatus">--</span>
+        </div>
+        <div class="panel-body">
+          <div class="memory-chart" id="memoryChart"></div>
+          <div class="memory-stats">
+            <div class="memory-stat">
+              <div class="memory-stat-value" id="heapUsed">--</div>
+              <div class="memory-stat-label">Heap Used</div>
+            </div>
+            <div class="memory-stat">
+              <div class="memory-stat-value" id="heapTotal">--</div>
+              <div class="memory-stat-label">Heap Total</div>
+            </div>
+            <div class="memory-stat">
+              <div class="memory-stat-value" id="heapLimit">--</div>
+              <div class="memory-stat-label">Heap Limit</div>
+            </div>
           </div>
         </div>
       </div>
-
-      <div class="panel">
-        <div class="panel-header">🔥 Current Streak</div>
-        <div class="panel-body streak-card">
-          <div class="streak-value" id="streak">23</div>
-          <div class="streak-label">days</div>
-          <div class="streak-calendar" id="calendar"></div>
-        </div>
-      </div>
     </div>
 
-    <div class="main-grid">
-      <div class="panel">
-        <div class="panel-header">🕐 Recent Activity</div>
-        <div class="panel-body">
-          <div class="activity-list" id="activityList"></div>
-        </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span>Resource Loading</span>
+        <span id="resourceSummary">0 resources</span>
       </div>
-
-      <div class="panel">
-        <div class="panel-header">💻 Languages</div>
-        <div class="panel-body">
-          <div class="languages-list" id="languages"></div>
-        </div>
+      <div class="panel-body">
+        <div class="resource-list" id="resourceList"></div>
       </div>
     </div>
   </div>
 
   <script>
-    const activities = [
-      { type: 'commit', title: 'feat: Add user authentication', repo: 'project-alpha', time: '2m ago' },
-      { type: 'pr', title: 'Merge feature/dashboard', repo: 'analytics-app', time: '15m ago' },
-      { type: 'review', title: 'Review: API refactoring', repo: 'backend-api', time: '1h ago' },
-      { type: 'issue', title: 'Bug: Fix memory leak', repo: 'core-lib', time: '2h ago' },
-      { type: 'commit', title: 'chore: Update dependencies', repo: 'project-alpha', time: '3h ago' },
-      { type: 'pr', title: 'Add unit tests for auth', repo: 'project-alpha', time: '4h ago' },
-      { type: 'review', title: 'Review: Database migrations', repo: 'backend-api', time: '5h ago' },
-    ];
+    let memoryHistory = [];
+    let memoryInterval = null;
 
-    const languages = [
-      { name: 'TypeScript', percent: 42, color: '#3178c6' },
-      { name: 'Python', percent: 28, color: '#3572A5' },
-      { name: 'Rust', percent: 15, color: '#dea584' },
-      { name: 'Go', percent: 10, color: '#00ADD8' },
-      { name: 'Other', percent: 5, color: '#666' }
-    ];
-
-    const chartData = [35, 42, 28, 55, 48, 15, 22];
-
-    function renderChart() {
-      const chart = document.getElementById('chart');
-      const max = Math.max(...chartData);
-      chart.innerHTML = chartData.map((val, i) =>
-        `<div class="chart-bar" style="height: ${(val / max) * 100}%" data-value="${val}"></div>`
-      ).join('');
-    }
-
-    function renderActivities() {
-      const list = document.getElementById('activityList');
-      const icons = { commit: '📝', pr: '🔀', review: '👀', issue: '🐛' };
-      list.innerHTML = activities.map(a => `
-        <div class="activity-item">
-          <div class="activity-icon ${a.type}">${icons[a.type]}</div>
-          <div class="activity-details">
-            <div class="activity-title">${a.title}</div>
-            <div class="activity-meta">${a.repo}</div>
-          </div>
-          <div class="activity-time">${a.time}</div>
-        </div>
-      `).join('');
-    }
-
-    function renderLanguages() {
-      const list = document.getElementById('languages');
-      list.innerHTML = languages.map(l => `
-        <div class="language-item">
-          <div class="language-name">${l.name}</div>
-          <div class="language-bar">
-            <div class="language-fill" style="width: ${l.percent}%; background: ${l.color}"></div>
-          </div>
-          <div class="language-percent">${l.percent}%</div>
-        </div>
-      `).join('');
-    }
-
-    function renderCalendar() {
-      const calendar = document.getElementById('calendar');
-      const days = [];
-      for (let i = 0; i < 28; i++) {
-        const isActive = Math.random() > 0.3;
-        const isToday = i === 27;
-        days.push(`<div class="streak-day ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}"></div>`);
+    // Initialize memory chart
+    function initMemoryChart() {
+      const chart = document.getElementById('memoryChart');
+      chart.innerHTML = '';
+      for (let i = 0; i < 40; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'memory-bar';
+        bar.style.height = '5%';
+        chart.appendChild(bar);
       }
-      calendar.innerHTML = days.join('');
     }
 
-    function setRange(range) {
-      document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+    function runProfile() {
+      const btn = document.getElementById('profileBtn');
+      btn.disabled = true;
+      btn.textContent = 'Profiling...';
 
-      // Simulate data change
-      const multipliers = { day: 0.15, week: 1, month: 4.3 };
-      const m = multipliers[range];
+      // Get navigation timing
+      const navTiming = performance.getEntriesByType('navigation')[0];
 
-      document.getElementById('commits').textContent = Math.round(247 * m);
-      document.getElementById('prs').textContent = Math.round(34 * m);
-      document.getElementById('reviews').textContent = Math.round(89 * m);
-      document.getElementById('loc').textContent = (4.2 * m).toFixed(1) + 'k';
+      if (navTiming) {
+        // Update main metrics
+        const domLoad = Math.round(navTiming.domContentLoadedEventEnd);
+        const pageLoad = Math.round(navTiming.loadEventEnd);
 
-      // Animate chart
-      const newData = chartData.map(() => Math.floor(Math.random() * 50) + 10);
-      const max = Math.max(...newData);
-      document.querySelectorAll('.chart-bar').forEach((bar, i) => {
-        bar.style.height = `${(newData[i] / max) * 100}%`;
-        bar.dataset.value = newData[i];
+        document.getElementById('domLoad').innerHTML = `${domLoad}<span class="metric-unit">ms</span>`;
+        document.getElementById('pageLoad').innerHTML = `${pageLoad}<span class="metric-unit">ms</span>`;
+        document.getElementById('totalTime').textContent = `${pageLoad}ms total`;
+        document.getElementById('timelineMax').textContent = `${pageLoad}ms`;
+
+        // Render timing bars
+        renderTimingBars(navTiming);
+
+        // Render navigation timeline
+        renderNavigationTimeline(navTiming);
+      }
+
+      // Get resource timing
+      const resources = performance.getEntriesByType('resource');
+      document.getElementById('resourceCount').textContent = resources.length;
+      renderResourceList(resources);
+
+      // Get memory if available
+      if (performance.memory) {
+        updateMemory();
+        startMemoryMonitoring();
+      } else {
+        document.getElementById('memoryUsed').innerHTML = `N/A`;
+        document.getElementById('memoryStatus').textContent = 'Not supported';
+      }
+
+      document.getElementById('timingStatus').textContent = 'Updated';
+
+      btn.disabled = false;
+      btn.textContent = 'Profile Page';
+    }
+
+    function renderTimingBars(timing) {
+      const container = document.getElementById('timingBars');
+      container.innerHTML = '';
+
+      const timings = [
+        { label: 'DNS Lookup', value: timing.domainLookupEnd - timing.domainLookupStart, color: '#f59e0b' },
+        { label: 'TCP Connect', value: timing.connectEnd - timing.connectStart, color: '#3b82f6' },
+        { label: 'Request', value: timing.responseStart - timing.requestStart, color: '#a855f7' },
+        { label: 'Response', value: timing.responseEnd - timing.responseStart, color: '#22c55e' },
+        { label: 'DOM Processing', value: timing.domComplete - timing.responseEnd, color: '#06b6d4' },
+        { label: 'Load Event', value: timing.loadEventEnd - timing.loadEventStart, color: '#ec4899' }
+      ];
+
+      const maxValue = Math.max(...timings.map(t => t.value), 100);
+
+      timings.forEach(t => {
+        const row = document.createElement('div');
+        row.className = 'timing-row';
+        const width = Math.max(5, (t.value / maxValue) * 100);
+        row.innerHTML = `
+          <span class="timing-label">${t.label}</span>
+          <div class="timing-bar-container">
+            <div class="timing-bar" style="width: ${width}%; background: ${t.color};"></div>
+          </div>
+          <span class="timing-value" style="color: ${t.color}">${Math.round(t.value)}ms</span>
+        `;
+        container.appendChild(row);
       });
     }
 
-    // Initialize
-    renderChart();
-    renderActivities();
-    renderLanguages();
-    renderCalendar();
+    function renderNavigationTimeline(timing) {
+      const container = document.getElementById('navTimeline');
+      container.innerHTML = '';
 
-    // Simulate real-time updates
-    setInterval(() => {
-      const commits = document.getElementById('commits');
-      commits.textContent = parseInt(commits.textContent) + Math.floor(Math.random() * 3);
-    }, 5000);
+      const total = timing.loadEventEnd;
+      if (total === 0) return;
+
+      const phases = [
+        { label: 'DNS', start: timing.domainLookupStart, end: timing.domainLookupEnd, color: '#f59e0b' },
+        { label: 'Connect', start: timing.connectStart, end: timing.connectEnd, color: '#3b82f6' },
+        { label: 'Request', start: timing.requestStart, end: timing.responseStart, color: '#a855f7' },
+        { label: 'Response', start: timing.responseStart, end: timing.responseEnd, color: '#22c55e' },
+        { label: 'DOM', start: timing.responseEnd, end: timing.domComplete, color: '#06b6d4' },
+        { label: 'Load', start: timing.loadEventStart, end: timing.loadEventEnd, color: '#ec4899' }
+      ];
+
+      phases.forEach(phase => {
+        if (phase.end - phase.start < 1) return;
+
+        const left = (phase.start / total) * 100;
+        const width = Math.max(2, ((phase.end - phase.start) / total) * 100);
+
+        const bar = document.createElement('div');
+        bar.className = 'timeline-bar';
+        bar.style.left = `${left}%`;
+        bar.style.width = `${width}%`;
+        bar.style.background = phase.color;
+        bar.textContent = phase.label;
+        container.appendChild(bar);
+      });
+    }
+
+    function renderResourceList(resources) {
+      const container = document.getElementById('resourceList');
+      container.innerHTML = '';
+
+      // Sort by duration
+      const sorted = resources.slice().sort((a, b) => b.duration - a.duration).slice(0, 20);
+
+      let totalSize = 0;
+      sorted.forEach(r => {
+        const size = r.transferSize || 0;
+        totalSize += size;
+
+        const type = getResourceType(r.initiatorType);
+        const name = r.name.split('/').pop().split('?')[0] || r.name;
+
+        const item = document.createElement('div');
+        item.className = 'resource-item';
+        item.innerHTML = `
+          <span class="resource-type ${type}">${type}</span>
+          <span class="resource-name" title="${r.name}">${name}</span>
+          <span class="resource-size">${formatSize(size)}</span>
+          <span class="resource-time">${Math.round(r.duration)}ms</span>
+        `;
+        container.appendChild(item);
+      });
+
+      document.getElementById('resourceSummary').textContent =
+        `${resources.length} resources (${formatSize(totalSize)})`;
+    }
+
+    function getResourceType(initiatorType) {
+      if (initiatorType === 'script') return 'script';
+      if (initiatorType === 'link' || initiatorType === 'css') return 'link';
+      if (initiatorType === 'img') return 'img';
+      if (initiatorType === 'fetch' || initiatorType === 'xmlhttprequest') return 'fetch';
+      return 'other';
+    }
+
+    function formatSize(bytes) {
+      if (bytes === 0) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function updateMemory() {
+      if (!performance.memory) return;
+
+      const used = performance.memory.usedJSHeapSize;
+      const total = performance.memory.totalJSHeapSize;
+      const limit = performance.memory.jsHeapSizeLimit;
+
+      document.getElementById('memoryUsed').innerHTML =
+        `${(used / 1024 / 1024).toFixed(1)}<span class="metric-unit">MB</span>`;
+      document.getElementById('heapUsed').textContent = `${(used / 1024 / 1024).toFixed(1)} MB`;
+      document.getElementById('heapTotal').textContent = `${(total / 1024 / 1024).toFixed(1)} MB`;
+      document.getElementById('heapLimit').textContent = `${(limit / 1024 / 1024).toFixed(0)} MB`;
+
+      const usagePercent = (used / limit) * 100;
+      document.getElementById('memoryStatus').textContent = `${usagePercent.toFixed(1)}% used`;
+
+      // Update history
+      memoryHistory.push(used);
+      if (memoryHistory.length > 40) memoryHistory.shift();
+
+      // Update chart
+      const chart = document.getElementById('memoryChart');
+      const bars = chart.children;
+      const maxMem = Math.max(...memoryHistory);
+
+      for (let i = 0; i < 40; i++) {
+        const value = memoryHistory[i] || 0;
+        const height = Math.max(5, (value / maxMem) * 100);
+        bars[i].style.height = `${height}%`;
+      }
+    }
+
+    function startMemoryMonitoring() {
+      if (memoryInterval) clearInterval(memoryInterval);
+      memoryInterval = setInterval(updateMemory, 1000);
+    }
+
+    async function runStressTest() {
+      const btn = document.querySelector('.btn-secondary');
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+
+      // Simulate some work
+      const iterations = 1000000;
+      const startMark = performance.mark('stress-start');
+
+      let result = 0;
+      for (let i = 0; i < iterations; i++) {
+        result += Math.sqrt(i) * Math.sin(i);
+      }
+
+      performance.mark('stress-end');
+      performance.measure('stress-test', 'stress-start', 'stress-end');
+
+      const measure = performance.getEntriesByName('stress-test')[0];
+
+      // Update timing status to show stress test result
+      document.getElementById('timingStatus').textContent = `Stress: ${Math.round(measure.duration)}ms`;
+
+      // Force memory update
+      if (performance.memory) {
+        updateMemory();
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Stress Test';
+
+      // Clean up
+      performance.clearMarks();
+      performance.clearMeasures();
+    }
+
+    // Initialize
+    initMemoryChart();
+
+    // Auto-profile on load
+    window.addEventListener('load', () => {
+      setTimeout(runProfile, 100);
+    });
   </script>
 </body>
 </html>
