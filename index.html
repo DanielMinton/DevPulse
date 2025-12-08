@@ -235,6 +235,80 @@
     .resource-size { color: #06b6d4; font-weight: 600; }
     .resource-time { color: #888; }
 
+    .stress-results {
+      display: none;
+      margin-top: 20px;
+    }
+    .stress-results.active { display: block; }
+    .stress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .stress-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #06b6d4;
+    }
+    .stress-metrics {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stress-metric {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stress-metric-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #06b6d4;
+      font-family: 'Monaco', monospace;
+    }
+    .stress-metric-label {
+      font-size: 0.6rem;
+      color: #888;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .stress-progress {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .stress-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #06b6d4, #22d3ee);
+      border-radius: 4px;
+      transition: width 0.1s;
+      width: 0%;
+    }
+    .stress-log {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Monaco', monospace;
+      font-size: 0.7rem;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .stress-log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+    }
+    .stress-log-entry:last-child { border-bottom: none; }
+    .stress-log-label { color: #888; }
+    .stress-log-value { color: #22d3ee; font-weight: 600; }
+
     .navigation-timeline {
       position: relative;
       height: 60px;
@@ -272,7 +346,7 @@
 
     <div class="controls">
       <button class="btn btn-primary" id="profileBtn" onclick="runProfile()">Profile Page</button>
-      <button class="btn btn-secondary" onclick="runStressTest()">Stress Test</button>
+      <button class="btn btn-secondary" id="stressBtn" onclick="runStressTest()">Stress Test</button>
       <span class="api-note">Using Browser Performance API, Navigation Timing, & Resource Timing</span>
     </div>
 
@@ -352,6 +426,45 @@
       </div>
       <div class="panel-body">
         <div class="resource-list" id="resourceList"></div>
+      </div>
+    </div>
+
+    <div class="stress-results" id="stressResults">
+      <div class="panel">
+        <div class="panel-header">
+          <span>Stress Test Results</span>
+          <span id="stressStatus">Ready</span>
+        </div>
+        <div class="panel-body">
+          <div class="stress-progress">
+            <div class="stress-progress-fill" id="stressProgress"></div>
+          </div>
+          <div class="stress-metrics">
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressDuration">--</div>
+              <div class="stress-metric-label">Total Time (ms)</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressOpsPerSec">--</div>
+              <div class="stress-metric-label">Ops/Second</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressMemBefore">--</div>
+              <div class="stress-metric-label">Memory Before</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressMemAfter">--</div>
+              <div class="stress-metric-label">Memory After</div>
+            </div>
+            <div class="stress-metric">
+              <div class="stress-metric-value" id="stressMemDelta">--</div>
+              <div class="stress-metric-label">Memory Delta</div>
+            </div>
+          </div>
+          <div class="stress-log" id="stressLog">
+            <div style="color: #666; text-align: center; padding: 20px;">Run a stress test to see detailed metrics</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -562,26 +675,82 @@
     }
 
     async function runStressTest() {
-      const btn = document.querySelector('.btn-secondary');
+      const btn = document.getElementById('stressBtn');
+      const resultsPanel = document.getElementById('stressResults');
+      const progressFill = document.getElementById('stressProgress');
+      const stressLog = document.getElementById('stressLog');
+
       btn.disabled = true;
       btn.textContent = 'Running...';
+      resultsPanel.classList.add('active');
+      document.getElementById('stressStatus').textContent = 'Running...';
+      stressLog.innerHTML = '';
+      progressFill.style.width = '0%';
 
-      // Simulate some work
-      const iterations = 1000000;
-      const startMark = performance.mark('stress-start');
+      // Clear previous marks
+      performance.clearMarks();
+      performance.clearMeasures();
 
-      let result = 0;
-      for (let i = 0; i < iterations; i++) {
-        result += Math.sqrt(i) * Math.sin(i);
+      // Memory before (if available)
+      const memBefore = performance.memory ? performance.memory.usedJSHeapSize : null;
+      if (memBefore) {
+        document.getElementById('stressMemBefore').textContent = formatMB(memBefore);
+        addStressLogEntry('Initial Memory', formatMB(memBefore));
       }
 
-      performance.mark('stress-end');
-      performance.measure('stress-test', 'stress-start', 'stress-end');
+      const tests = [
+        { name: 'Math Operations', fn: testMathOps, iterations: 500000 },
+        { name: 'Array Operations', fn: testArrayOps, iterations: 10000 },
+        { name: 'String Operations', fn: testStringOps, iterations: 50000 },
+        { name: 'Object Creation', fn: testObjectCreation, iterations: 50000 },
+        { name: 'DOM Operations', fn: testDOMOps, iterations: 1000 }
+      ];
 
-      const measure = performance.getEntriesByName('stress-test')[0];
+      let totalDuration = 0;
+      let totalOps = 0;
 
-      // Update timing status to show stress test result
-      document.getElementById('timingStatus').textContent = `Stress: ${Math.round(measure.duration)}ms`;
+      for (let i = 0; i < tests.length; i++) {
+        const test = tests[i];
+        progressFill.style.width = `${((i + 0.5) / tests.length) * 100}%`;
+
+        await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for UI update
+
+        performance.mark(`${test.name}-start`);
+        const startTime = performance.now();
+
+        test.fn(test.iterations);
+
+        const duration = performance.now() - startTime;
+        performance.mark(`${test.name}-end`);
+        performance.measure(test.name, `${test.name}-start`, `${test.name}-end`);
+
+        totalDuration += duration;
+        totalOps += test.iterations;
+
+        const opsPerSec = Math.round(test.iterations / (duration / 1000));
+        addStressLogEntry(test.name, `${Math.round(duration)}ms (${formatNumber(opsPerSec)} ops/s)`);
+
+        progressFill.style.width = `${((i + 1) / tests.length) * 100}%`;
+      }
+
+      // Memory after
+      const memAfter = performance.memory ? performance.memory.usedJSHeapSize : null;
+      if (memAfter) {
+        document.getElementById('stressMemAfter').textContent = formatMB(memAfter);
+        const delta = memAfter - memBefore;
+        document.getElementById('stressMemDelta').textContent = (delta >= 0 ? '+' : '') + formatMB(delta);
+        addStressLogEntry('Final Memory', formatMB(memAfter));
+        addStressLogEntry('Memory Change', (delta >= 0 ? '+' : '') + formatMB(delta));
+      }
+
+      // Update summary metrics
+      document.getElementById('stressDuration').textContent = Math.round(totalDuration);
+      const totalOpsPerSec = Math.round(totalOps / (totalDuration / 1000));
+      document.getElementById('stressOpsPerSec').textContent = formatNumber(totalOpsPerSec);
+
+      // Update timing status
+      document.getElementById('timingStatus').textContent = `Stress: ${Math.round(totalDuration)}ms`;
+      document.getElementById('stressStatus').textContent = 'Complete';
 
       // Force memory update
       if (performance.memory) {
@@ -590,10 +759,97 @@
 
       btn.disabled = false;
       btn.textContent = 'Stress Test';
+    }
 
-      // Clean up
-      performance.clearMarks();
-      performance.clearMeasures();
+    function testMathOps(iterations) {
+      let result = 0;
+      for (let i = 0; i < iterations; i++) {
+        result += Math.sqrt(i) * Math.sin(i) * Math.cos(i);
+        result = Math.abs(result % 1000);
+      }
+      return result;
+    }
+
+    function testArrayOps(iterations) {
+      const arr = [];
+      for (let i = 0; i < iterations; i++) {
+        arr.push(i);
+        if (i % 100 === 0) {
+          arr.sort((a, b) => b - a);
+          arr.reverse();
+        }
+      }
+      return arr.length;
+    }
+
+    function testStringOps(iterations) {
+      let str = '';
+      for (let i = 0; i < iterations; i++) {
+        str += String.fromCharCode(65 + (i % 26));
+        if (str.length > 1000) {
+          str = str.slice(-500);
+        }
+      }
+      return str.length;
+    }
+
+    function testObjectCreation(iterations) {
+      const objects = [];
+      for (let i = 0; i < iterations; i++) {
+        objects.push({
+          id: i,
+          name: `Object ${i}`,
+          data: { nested: { value: i * 2 } },
+          tags: ['test', 'stress', `tag${i}`]
+        });
+        if (objects.length > 1000) {
+          objects.shift();
+        }
+      }
+      return objects.length;
+    }
+
+    function testDOMOps(iterations) {
+      const container = document.createElement('div');
+      container.style.display = 'none';
+      document.body.appendChild(container);
+
+      for (let i = 0; i < iterations; i++) {
+        const el = document.createElement('div');
+        el.className = `test-element-${i}`;
+        el.textContent = `Element ${i}`;
+        el.setAttribute('data-index', i);
+        container.appendChild(el);
+
+        if (container.children.length > 100) {
+          container.removeChild(container.firstChild);
+        }
+      }
+
+      document.body.removeChild(container);
+      return iterations;
+    }
+
+    function addStressLogEntry(label, value) {
+      const log = document.getElementById('stressLog');
+      const entry = document.createElement('div');
+      entry.className = 'stress-log-entry';
+      entry.innerHTML = `
+        <span class="stress-log-label">${label}</span>
+        <span class="stress-log-value">${value}</span>
+      `;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function formatMB(bytes) {
+      return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
     }
 
     // Initialize
